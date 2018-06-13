@@ -69,7 +69,7 @@ full %>%
 ### COD_PR
 table(full$COD_PR)
 ### Alcuni eventi rari che aggregerei ad altro
-ggplot(full, aes(y = log(TARGET), group = COD_PR, col = COD_PR)) + 
+ggplot(full, aes(y = TARGET, group = COD_PR, col = COD_PR)) + 
   geom_boxplot()
 
 ## Cambiare MCALL
