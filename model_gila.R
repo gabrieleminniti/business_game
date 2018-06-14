@@ -17,15 +17,15 @@ rf_vi <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + CO
 importance(rf_vi)
 
 rf_prev <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
-                  SERIE + AVARROLE + m + num_risorse, 
+                    SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
+                    Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
+                    Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA, 
                 data = train, 
                 write.forest = TRUE, 
                 num.random.splits = 4, 
-                verbose = TRUE)
-
-
+                verbose = TRUE, num.trees = 2000)
 
 yhat <- predict(rf_prev, data = test)
 yhat <- exp(yhat$predictions)
 
-write.table(x = yhat, file = "mySubmission2.txt", row.names = FALSE, col.names = FALSE)
+write.table(x = yhat, file = "mySubmission4.txt", row.names = FALSE, col.names = FALSE)
