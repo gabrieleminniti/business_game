@@ -32,4 +32,4 @@ my_lasso$
 prev_anna <- predict(my_lasso, newx = my_test_sparse, s = "lambda.1se")
 prev_anna <- exp(prev_anna[,1])
 write.table(file="AnnaSubmission.txt", prev_anna,row.names = FALSE,col.names = FALSE)
-
+##### end
