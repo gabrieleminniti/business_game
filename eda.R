@@ -161,3 +161,6 @@ print("TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_
 print("SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista")
 print("Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello")
 print("Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA")
+
+
+detach("package:ranger", unload = TRUE)
