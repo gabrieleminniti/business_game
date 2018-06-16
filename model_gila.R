@@ -3,7 +3,7 @@ source("eda.R")
 
 
 ### Variable importance giusto per vedere come va
-library(ranger)
+# library(ranger)
 
 # rf_vi <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
 #                   SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
@@ -17,23 +17,55 @@ library(ranger)
 # 
 # importance(rf_vi)
 
-rf_prev <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
-                    SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
-                    Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
-                    Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA, 
-                data = train, 
-                write.forest = TRUE, 
-                num.random.splits = 4, 
-                verbose = TRUE, 
-                num.trees = 2000)
+#############################################################################################################
+### L'idea è buona ma in questo caso non funzione
 
-yhat_rf <- predict(rf_prev, data = test)
-yhat_rf <- exp(yhat_rf$predictions)
+# library(glmnet) # Sarebbe utile fare questo per primo, xgboost secondo e rf terzo
+# library(doParallel)
+# 
+# my_cl <- makePSOCKcluster(2) # da cambiare
+# registerDoParallel(my_cl)
+# 
+# ### data
+# my_formula <- formula( ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
+#                         SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
+#                         Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
+#                         Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA)
+# 
+# train_sparse <- sparse.model.matrix(my_formula, train)
+# test_sparse <- sparse.model.matrix(my_formula, test)
+# 
+# ### parameters
+# my_alpha <- seq(0, 1, length.out = 20)
+# 
+# ### model
+# 
+# my_stored_MSE <- numeric(length(my_alpha))
+# 
+# for(i in seq_along(my_alpha)) {
+#   glmnet_prev <- cv.glmnet(x = train_sparse, 
+#                          y = train$TARGET, 
+#                          nfolds = 5, 
+#                          parallel = TRUE,
+#                          nlambda = 500,
+#                          alpha = my_alpha[i])
+#   my_stored_MSE[i] <- min(glmnet_prev$cvm)
+#   print(paste("Iterazione numero", i, "di", length(my_alpha)))
+#   print("Per ora il miglior modello fa")
+#   print(min(my_stored_MSE[1:i]))
+# }
+# 
+# ### goodness of fit
+# glmnet_prev$cvm
+# 
+# stopCluster(my_cl)
+# rm(my_cl)
+# detach("package:doParallel", unload = TRUE)
+# 
+# # plot(glmnet_prev)
+# yhat_glmnet <- exp(predict(glmnet_prev, newx = test_sparse)[,1])
 
-# rm(rf_prev)
-# write.table(x = yhat, file = "mySubmission4.txt", row.names = FALSE, col.names = FALSE)
-
-########################################################################################################################
+#############################################################################################################
 
 library(xgboost)
 
@@ -99,6 +131,31 @@ data_test <- Matrix::sparse.model.matrix(object = my_formula_test,
 yhat_xgb <- predict(xgb_prev, data_test)
 yhat_xgb <- exp(yhat_xgb)
 
+########################################################################################################
+library(ranger)
+
+rf_prev <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
+                    SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
+                    Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
+                    Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA, 
+                  data = train, 
+                  write.forest = TRUE, 
+                  num.random.splits = 4, 
+                  verbose = TRUE, 
+                  num.trees = 1000)
+
+yhat_rf <- predict(rf_prev, data = test)
+yhat_rf <- exp(yhat_rf$predictions)
+
+# rm(rf_prev)
+# write.table(x = yhat, file = "mySubmission4.txt", row.names = FALSE, col.names = FALSE)
+
+#################################################################################################################
+
+# cor(cbind(yhat_rf, yhat_xgb, yhat_glmnet))
+
 ### Final prediction
-yhat_final <- (yhat_rf + yhat_xgb)/2
-write.table(x = yhat_final, file = "mySubmission5.txt", row.names = FALSE, col.names = FALSE)
+yhat_final <- (yhat_rf + yhat_xgb + yhat_glmnet)/3
+write.table(x = yhat_final, file = "mySubmission6.txt", row.names = FALSE, col.names = FALSE)
+
+
