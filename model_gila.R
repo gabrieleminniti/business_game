@@ -66,7 +66,92 @@ source("eda.R")
 # yhat_glmnet <- exp(predict(glmnet_prev, newx = test_sparse)[,1])
 
 #############################################################################################################
+# library(nnet)
+# 
+# 
+# ### prepare data
+# train_for_nn <- train %>%
+#   select(TKT_START, TKT_START_DIFF, MERCATO, n, COD_PR, MCALL, TKT_TYPE, SERIE, AVARROLE, m, num_risorse, 
+#          Apertura, Assegnato, Attivazione_Specialista, Caso_Riaperto, Confirmed, Escalation, Feedback_Negativo,
+#          Prima_Attivazione_Secondo_Livello, Riapertura, Soluzione_Non_Efficace, DINTERV, MARCA) %>%
+#   mutate_if(is.numeric, scale) %>%
+#   model.matrix(~ TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
+#                  SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
+#                  Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
+#                  Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA, data = .)
+# 
+# ### model
+# nnet_prev <- nnet(x = train_for_nn, 
+#                   y = train$TARGET, 
+#                   size = 12, # da tunare?
+#                   linout = TRUE) # for regression
+# 
+# mean((nnet_prev$fitted.values - train$TARGET)**2)
 
+#############################################################################################################
+# Troppo lento
+
+# 
+#
+# library(kernlab)
+# library(parallel)
+# 
+# ### formula
+# my_formula <- formula(TARGET ~ -1 + TKT_START + TKT_START_DIFF + MERCATO + n + COD_PR + MCALL + TKT_TYPE + 
+#                         SERIE + AVARROLE + m + num_risorse + Apertura + Assegnato + Attivazione_Specialista + 
+#                         Caso_Riaperto + Confirmed + Escalation + Feedback_Negativo + Prima_Attivazione_Secondo_Livello + 
+#                         Riapertura + Soluzione_Non_Efficace + DINTERV + MARCA)
+# 
+# ### sigma estimate
+# sigest(train %>% model.matrix(my_formula, data = .)) #potrei fixarlo per non scalare i factors
+# 
+# ### grid
+# pox_par <- expand.grid(
+#   sigma = seq(0.005, 0.02, 0.005), # la prendo da subito sopra
+#   type = c("eps-svr"), # da cambiare se faccio classificazione
+#   # sarebbero da tunare anche eps e nu
+#   C = 10 ^ seq(-2, 2) #sarebbe da fare da -2 a 2
+# )
+# 
+# ### CV in parallel
+# my_superman <- makeCluster(2L)
+# 
+# ### model
+# cv_result <- clusterMap(
+#   cl = my_superman, 
+#   fun = function(my_sigma, my_C, my_type, my_formula, my_df) {
+#     library(tidyverse)
+#     library(kernlab)
+#     return(
+#       ksvm(x = my_formula, 
+#            data = my_df %>% sample_frac(.1) %>% as.data.frame(),
+#            scaled = TRUE,
+#            cross = 5,
+#            kernel = "rbfdot",
+#            type = my_type,
+#            kpar = list(sigma = my_sigma),
+#            C = my_C)
+#     )
+#   },
+#   my_sigma = pox_par$sigma,
+#   my_C = pox_par$C,
+#   my_type = as.character(pox_par$type),
+#   MoreArgs = list(my_formula = my_formula, my_df = train),
+#   RECYCLE = FALSE
+# )
+# stopCluster(my_superman)
+# 
+# # number of support vectors used
+# plot(map_int(cv_result, function(x) x@nSV), ylab = "# of SV")
+# 
+# # Cross error
+# (pox_par$cv_error <- map_dbl(cv_result, function(x) x@cross))
+# 
+# ggplot(pox_par) + 
+#   geom_line(aes(x = sigma, y = cv_error)) + # da aggiungere col = type nel caso 
+#   facet_grid(vars(type),vars(C))
+
+#############################################################################################################
 library(xgboost)
 
 ### params
@@ -142,7 +227,7 @@ rf_prev <- ranger(formula = TARGET ~ TKT_START + TKT_START_DIFF + MERCATO + n + 
                   write.forest = TRUE, 
                   num.random.splits = 4, 
                   verbose = TRUE, 
-                  num.trees = 1000)
+                  num.trees = 2000)
 
 yhat_rf <- predict(rf_prev, data = test)
 yhat_rf <- exp(yhat_rf$predictions)
@@ -154,8 +239,15 @@ yhat_rf <- exp(yhat_rf$predictions)
 
 # cor(cbind(yhat_rf, yhat_xgb, yhat_glmnet))
 
+### get weights
+
+# data_train <- Matrix::sparse.model.matrix(object = my_formula, 
+#                                             data = train)
+# coef(lm(train$TARGET ~ predict(xgb_prev, data_train) + predict(rf_prev, train)$predictions))
+# 
 ### Final prediction
-yhat_final <- (yhat_rf + yhat_xgb + yhat_glmnet)/3
-write.table(x = yhat_final, file = "mySubmission6.txt", row.names = FALSE, col.names = FALSE)
+### potrebbe essere meglio una media aritmetica
+yhat_final <- (0.98* yhat_rf + 0.19 * yhat_xgb)/(0.98 + 0.19)
+write.table(x = yhat_final, file = "mySubmission7.txt", row.names = FALSE, col.names = FALSE)
 
 
